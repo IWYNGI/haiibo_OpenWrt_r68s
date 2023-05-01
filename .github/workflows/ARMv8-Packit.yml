@@ -1,0 +1,68 @@
+name: ARMv8 Packit
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: 0 15 * * *
+
+env:
+  UPLOAD_RELEASE: true
+  TZ: Asia/Shanghai
+
+jobs:
+  Packit:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Initialization Environment
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /etc/mysql /etc/php /usr/local/lib/android
+        sudo -E apt-get -qq update
+        sudo -E apt-get -y install $(curl -fsSL is.gd/depends_ubuntu_2204)
+        sudo -E apt-get -qq autoremove --purge
+        sudo -E apt-get -qq clean
+        sudo timedatectl set-timezone "$TZ"
+
+    - name: Download Armvirt Firmware
+      id: download
+      run: |
+        FIRMWARE_URL=$(curl -s "https://api.github.com/repos/$GITHUB_REPOSITORY/releases" | grep -o "ROOTFS_PLUS.*rootfs.tar.gz")
+        FIRMWARE_PATH=openwrt/bin/targets/armvirt/64
+        [ -d $FIRMWARE_PATH ] || mkdir -p $FIRMWARE_PATH
+        wget -q -P $FIRMWARE_PATH https://github.com/$GITHUB_REPOSITORY/releases/download/$FIRMWARE_URL
+        echo "status=success" >> $GITHUB_OUTPUT
+        echo "DATE=$(date +"%Y-%m-%d %H:%M:%S")" >> $GITHUB_ENV
+
+    - name: Package OpenWrt Firmware
+      if: steps.download.outputs.status == 'success'
+      uses: ophub/amlogic-s9xxx-openwrt@main
+      with:
+        openwrt_path: openwrt/bin/targets/*/*/*rootfs.tar.gz
+        openwrt_board: all
+        openwrt_kernel: 5.15.13_6.1.5
+        auto_kernel: true
+        kernel_repo: ophub/kernel
+        kernel_usage: stable
+
+    - name: Upload OpenWrt To Release
+      if: env.PACKAGED_STATUS == 'success' && env.UPLOAD_RELEASE == 'true'
+      uses: ncipollo/release-action@v1
+      with:
+        name: R${{ env.DATE }} for ARMv8
+        allowUpdates: true
+        removeArtifacts: true
+        tag: ARMv8
+        token: ${{ secrets.GITHUB_TOKEN }}
+        artifacts: ${{ env.PACKAGED_OUTPUTPATH }}/*
+        body: |
+          **This is OpenWrt firmware for Amlogic and Rockchip
+          * 这是用于 Amlogic 和 Rockchip 的 OpenWRT 固件
+          默认 IP：192.168.1.1 默认密码：password
+          安装到 EMMC：系统 → 晶晨宝盒 → 安装 OpenWrt → 选择型号 → 安装
+          升级 OpenWrt：系统 → 晶晨宝盒 → 手动上传更新 或者 在线下载更新
+          常见问题及注意事项请参考恩山F大➦[最新帖](https://www.right.com.cn/forum/thread-4076037-1-1.html)
