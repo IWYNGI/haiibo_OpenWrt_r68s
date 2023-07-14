@@ -35,7 +35,10 @@ jobs:
       - name: Download packages
         run: |
           cd lede
-          make download -j16
+          make defconfig
+          make download -j8
+          find dl -size -1024c -exec ls -l {} \;
+          find dl -size -1024c -exec r
 
       - name: Build LEDE Kernel Package
         run: |
