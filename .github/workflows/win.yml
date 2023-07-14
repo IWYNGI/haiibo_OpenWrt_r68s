@@ -33,10 +33,13 @@ jobs:
           cp ../.config .config
 
       - name: Download packages
-        run: make download -j16
+        run: |
+          cd lede
+          make download -j16
 
       - name: Build LEDE Kernel Package
         run: |
+          cd lede
           make -j$(nproc) || make -j1 V=s
           echo "======================="
           echo "Space usage:"
