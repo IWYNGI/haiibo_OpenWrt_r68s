@@ -34,7 +34,7 @@ jobs:
       - name: Install Python Dependencies
         run: |
           cd lede
-          pip2 install -r scripts/openwrt_packit/requirements.txt
+          pip install -r scripts/openwrt_packit/requirements.txt
 
       - name: Build LEDE Kernel Package
         run: |
